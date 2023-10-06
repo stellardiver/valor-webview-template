@@ -108,6 +108,11 @@ class KotlinActivity : AppCompatActivity() {
             return true
         }
 
+        if (loadingUri.scheme != "http" && loadingUri.scheme != "https") {
+            fireIntentActionView(loadingUri)
+            return true
+        }
+
         return false
     }
 

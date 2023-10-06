@@ -99,6 +99,11 @@ public class JavaActivity extends AppCompatActivity {
             return true;
         }
 
+        if (!Objects.equals(loadingUrl.getScheme(), "http") && !Objects.equals(loadingUrl.getScheme(), "https")) {
+            fireIntentActionView(loadingUrl);
+            return true;
+        }
+
         return false;
     }
 
