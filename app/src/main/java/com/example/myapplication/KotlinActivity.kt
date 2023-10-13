@@ -1,16 +1,20 @@
 package com.example.myapplication
 
 import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.JsResult
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+
 
 class KotlinActivity : AppCompatActivity() {
 
@@ -70,6 +74,7 @@ class KotlinActivity : AppCompatActivity() {
                 }
             }
         }
+
     }
 
     private fun manageNavigation(webResource: Any): Boolean {
@@ -87,19 +92,95 @@ class KotlinActivity : AppCompatActivity() {
 
                 val uriRedirectPage = Uri.parse(loadingUri.getQueryParameter("redirect_page"))
                 val uriPaymentLink = Uri.parse(loadingUri.getQueryParameter("payment_link"))
-                val uriForIntent = Uri.Builder().apply {
 
-                    scheme(uriRedirectPage.scheme)
-                    authority(uriRedirectPage.authority)
-                    path(uriRedirectPage.path)
+                if (uriPaymentLink.scheme == "upi") {
 
-                    appendQueryParameter("payment_link", uriPaymentLink.toString())
-                    appendQueryParameter("is_supported_link", isIntentActionAvailableForUri(uriPaymentLink).toString())
-                    appendQueryParameter("comeback_deeplink", "valor://return")
+                    val upiApps = mutableMapOf(
+                        "PhonePe" to "com.phonepe.app",
+                        "Paytm" to "net.one97.paytm",
+                        "Google Pay" to "com.google.android.apps.nbu.paisa.user"
+                    )
 
-                }.build()
+                    val appsToChoose = arrayListOf<String>()
 
-                fireIntentActionView(uriForIntent)
+                    for (app in upiApps) {
+
+                        runCatching {
+                            packageManager.getPackageInfo(app.value, 0)
+                            appsToChoose.add(app.key)
+                        }
+                    }
+
+                    if (appsToChoose.isNotEmpty()) {
+
+                        val builder: AlertDialog.Builder = AlertDialog.Builder(this)
+
+                        builder
+                            .setTitle("Choose app")
+                            .setItems(
+                                appsToChoose.toTypedArray(),
+                            ) { _, which ->
+
+                                val uri = Uri.Builder().apply {
+
+                                    scheme(uriRedirectPage.scheme)
+                                    authority(uriRedirectPage.authority)
+                                    path(uriRedirectPage.path)
+
+                                    appendQueryParameter(
+                                        "payment_link",
+                                        preparePaymentLink(
+                                            link = uriPaymentLink,
+                                            appName = appsToChoose[which]
+                                        )
+                                    )
+                                    appendQueryParameter(
+                                        "is_supported_link",
+                                        true.toString()
+                                    )
+                                    appendQueryParameter("comeback_deeplink", "valor://return")
+
+                                }.build()
+
+                                fireIntentActionView(uri)
+                            }
+
+                        val dialog: AlertDialog = builder.create()
+                        dialog.show()
+
+                    } else {
+
+                        fireIntentActionView(
+                            Uri.Builder().apply {
+
+                                scheme(uriRedirectPage.scheme)
+                                authority(uriRedirectPage.authority)
+                                path(uriRedirectPage.path)
+
+                                appendQueryParameter("payment_link", uriPaymentLink.toString())
+                                appendQueryParameter("is_supported_link", false.toString())
+                                appendQueryParameter("comeback_deeplink", "valor://return")
+
+                            }.build()
+                        )
+                    }
+
+                    return true
+                }
+
+                fireIntentActionView(
+                    Uri.Builder().apply {
+
+                        scheme(uriRedirectPage.scheme)
+                        authority(uriRedirectPage.authority)
+                        path(uriRedirectPage.path)
+
+                        appendQueryParameter("payment_link", uriPaymentLink.toString())
+                        appendQueryParameter("is_supported_link", isIntentActionAvailableForUri(uriPaymentLink).toString())
+                        appendQueryParameter("comeback_deeplink", "valor://return")
+
+                    }.build()
+                )
 
             }.onFailure { e ->
                 e.printStackTrace()
@@ -133,6 +214,35 @@ class KotlinActivity : AppCompatActivity() {
             ).show()
         }
 
+    }
+
+    private fun preparePaymentLink(link: Uri, appName: String): String {
+
+        return Uri.Builder().apply {
+
+            when (appName) {
+                "PhonePe" -> {
+                    scheme("phonepe")
+                    authority(link.authority)
+                    path(link.path)
+                    encodedQuery(link.query)
+                }
+                "Google Pay" -> {
+                    scheme("tez")
+                    authority("upi")
+                    path("pay")
+                    encodedQuery(link.query)
+                }
+                "Paytm" -> {
+                    scheme("paytmmp")
+                    authority(link.authority)
+                    path(link.path)
+                    encodedQuery(link.query)
+                }
+                else -> { link.toString() }
+            }
+
+        }.build().toString()
     }
 
     private fun isIntentActionAvailableForUri(uri: Uri): Boolean {

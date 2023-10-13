@@ -14,6 +14,14 @@
         </intent>
     </queries>
 ```
+```xml
+    <queries>
+        <!-- Package Specific UPI Apps -->
+        <package android:name="com.google.android.apps.nbu.paisa.user" />
+        <package android:name="com.phonepe.app" />
+        <package android:name="net.one97.paytm" />
+    </queries>
+```
 
 - В ```AndroidManifest.xml``` в тег activity, в котором выполняется вебвью, добавить атрибут ```android:launchMode="singleTop"```. Внутри тега добавить следующий intent-filter:
 
